@@ -1,6 +1,6 @@
-# ExBinance
+# Dwarves Binance
 
-**TODO: Add description**
+**This module wrap up Binance Future APIs**
 
 ## Installation
 
@@ -10,7 +10,7 @@ by adding `ex_binance` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ex_binance, "~> 0.1.0"}
+    {:dwarves_binancex, "~> 0.1.0"}
   ]
 end
 ```
