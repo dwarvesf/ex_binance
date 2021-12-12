@@ -57,9 +57,38 @@ defmodule Dwarves.BinanceFutures do
   In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
 
   Please read https://www.binance.com/restapipub.html#user-content-account-endpoints to understand all the parameters
+
+  ## Examples
+  ```
+  create_order(
+    %{"symbol" => "BTCUSDT", "quantity" => 1, "side" => "BUY", "type" => "MARKET"},
+    "api_secret",
+    "api_key",
+    true)
+  ```
+
+  Result:
+  ```
+  {:ok,
+   %{
+     "orderId" => 809666629,
+     "origQty" => "1",
+     "origType" => "MARKET",
+     "positionSide" => "BOTH",
+     "price" => "0",
+     "side" => "BUY",
+     "status" => "NEW",
+     "symbol" => "BTCUSDT",
+     "type" => "MARKET",
+     ...
+   }
+  }
+  or
+  {:error, {:binance_error, %{code: -2019, msg: "Margin is insufficient."}}}
+  ```
   """
   def create_order(
-        %{"symbol" => symbol, "side" => side, "type" => type, "quantity" => quantity} = params,
+        params,
         api_secret,
         api_key,
         is_testnet \\ false
@@ -84,42 +113,12 @@ defmodule Dwarves.BinanceFutures do
       end
 
     arguments =
-      %{
-        symbol: symbol,
-        side: side,
-        type: type,
-        quantity: quantity,
+      params
+      |> extract_order_params()
+      |> Map.merge(%{
         recvWindow: receiving_window,
         timestamp: timestamp
-      }
-      |> Map.merge(
-        unless(
-          is_nil(params["new_client_order_id"]),
-          do: %{newClientOrderId: params["new_client_order_id"]},
-          else: %{}
-        )
-      )
-      |> Map.merge(
-        unless(is_nil(params["stop_price"]),
-          do: %{stopPrice: format_price(params["stop_price"])},
-          else: %{}
-        )
-      )
-      |> Map.merge(
-        unless(is_nil(params["new_client_order_id"]),
-          do: %{icebergQty: params["iceberg_quantity"]},
-          else: %{}
-        )
-      )
-      |> Map.merge(
-        unless(is_nil(params["time_in_force"]),
-          do: %{timeInForce: params["time_in_force"]},
-          else: %{}
-        )
-      )
-      |> Map.merge(
-        unless(is_nil(params["price"]), do: %{price: format_price(params["price"])}, else: %{})
-      )
+      })
 
     case HTTPClient.signed_request_binance(
            "/fapi/v1/order",
@@ -271,6 +270,103 @@ defmodule Dwarves.BinanceFutures do
     {:error, %Binance.InsufficientBalanceError{reason: reason}}
   end
 
+  @doc """
+  Creates a batch orders on binance.Max 5 orders
+
+  Returns `{:ok, [%{order} or %{code: code, msg: msg}]}`.
+
+  In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
+
+  Please read https://binance-docs.github.io/apidocs/futures/en/#place-multiple-orders-trade to understand all the parameters
+
+  ## Examples
+  ```
+  create_batch_orders(%{
+      "batch_orders" => [
+        %{"symbol" => "BTCUSDT", "quantity" => 1, "side" => "BUY", "type" => "MARKET"},
+        %{"symbol" => "ETHUSDT", "quantity" => 1, "side" => "BUY", "type" => "MARKET"}
+      ]
+    },
+    "api_secret",
+    "api_key",
+    true)
+  ```
+
+  Result:
+  ```
+  {:ok,
+  [
+   %{"code" => -2019, "msg" => "Margin is insufficient."},
+   %{
+     "orderId" => 809666629,
+     "origQty" => "1",
+     "origType" => "MARKET",
+     "positionSide" => "BOTH",
+     "price" => "0",
+     "side" => "BUY",
+     "status" => "NEW",
+     "symbol" => "ETHUSDT",
+     "type" => "MARKET",
+     ...
+   }
+  ]}
+  ```
+  """
+  def create_batch_orders(
+        params,
+        api_secret,
+        api_key,
+        is_testnet \\ false
+      ) do
+    timestamp =
+      case params["timestamp"] do
+        # timestamp needs to be in milliseconds
+        nil ->
+          :os.system_time(:millisecond)
+
+        t ->
+          t
+      end
+
+    receiving_window =
+      case params["receiving_window"] do
+        nil ->
+          1000
+
+        t ->
+          t
+      end
+
+    orders =
+      params["batch_orders"]
+      |> Enum.map(fn order ->
+        extract_order_params(order)
+        |> stringify()
+      end)
+      |> Enum.join(", ")
+
+    arguments = %{
+      batchOrders: URI.encode_www_form("[#{orders}]"),
+      recvWindow: receiving_window,
+      timestamp: timestamp
+    }
+
+    case HTTPClient.signed_request_binance(
+           "/fapi/v1/batchOrders",
+           arguments,
+           :post,
+           api_secret,
+           api_key,
+           is_testnet
+         ) do
+      {:ok, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        data
+    end
+  end
+
   # Misc
 
   defp format_price(num) when is_float(num), do: :erlang.float_to_binary(num, [{:decimals, 8}])
@@ -334,5 +430,56 @@ defmodule Dwarves.BinanceFutures do
       err ->
         err
     end
+  end
+
+  def extract_order_params(
+        %{"symbol" => symbol, "side" => side, "type" => type, "quantity" => quantity} = params
+      ) do
+    %{
+      symbol: symbol,
+      side: side,
+      type: type,
+      quantity: quantity
+    }
+    |> Map.merge(
+      unless(
+        is_nil(params["new_client_order_id"]),
+        do: %{newClientOrderId: params["new_client_order_id"]},
+        else: %{}
+      )
+    )
+    |> Map.merge(
+      unless(is_nil(params["stop_price"]),
+        do: %{stopPrice: format_price(params["stop_price"])},
+        else: %{}
+      )
+    )
+    |> Map.merge(
+      unless(is_nil(params["iceberg_quantity"]),
+        do: %{icebergQty: params["iceberg_quantity"]},
+        else: %{}
+      )
+    )
+    |> Map.merge(
+      unless(is_nil(params["time_in_force"]),
+        do: %{timeInForce: params["time_in_force"]},
+        else: %{}
+      )
+    )
+    |> Map.merge(
+      unless(is_nil(params["price"]), do: %{price: format_price(params["price"])}, else: %{})
+    )
+  end
+
+  def stringify(map = %{}) do
+    kvString =
+      map
+      |> Map.to_list()
+      |> Enum.map(fn x ->
+        Tuple.to_list(x) |> Enum.map(&"\"#{&1}\"") |> Enum.join(":")
+      end)
+      |> Enum.join(",")
+
+    "{#{kvString}}"
   end
 end

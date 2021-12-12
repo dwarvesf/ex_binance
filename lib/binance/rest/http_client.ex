@@ -98,10 +98,11 @@ defmodule Binance.Rest.HTTPClient do
     endpoint = get_endpoint(is_testnet)
 
     case apply(HTTPoison, method, [
-           "#{endpoint}#{url}?#{body}",
-           "",
+           "#{endpoint}#{url}",
+           body,
            [
-             {"X-MBX-APIKEY", api_key}
+             {"X-MBX-APIKEY", api_key},
+             {"Content-type", "application/x-www-form-urlencoded"}
            ]
          ]) do
       {:error, err} ->
