@@ -1,5 +1,5 @@
 defmodule Binance.Rest.HTTPClient do
-  @endpoint Application.get_env(:dwarves_binancex, :end_point, "https://fapi.binancefuture.com")
+  @endpoint Application.get_env(:dwarves_binancex, :end_point, "https://fapi.binance.com")
   @testnet_endpoint Application.get_env(
                       :dwarves_binancex,
                       :testnet_end_point,

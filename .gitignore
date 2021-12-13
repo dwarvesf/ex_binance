@@ -24,3 +24,4 @@ binance-*.tar
 
 # Elixir Language Server
 .elixir_ls
+.DS_Store
