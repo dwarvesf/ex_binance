@@ -3,7 +3,7 @@
 use Mix.Config
 
 config :dwarves_binancex,
-  end_point: "https://fapi.binancefuture.com",
+  end_point: "https://fapi.binance.com",
   testnet_end_point: "https://testnet.binancefuture.com"
 
 config :exvcr,

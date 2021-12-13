@@ -133,6 +133,7 @@ defmodule Dwarves.BinanceFutures do
 
       data ->
         data
+        |> parse_order_response
     end
   end
 
@@ -159,7 +160,6 @@ defmodule Dwarves.BinanceFutures do
       api_key,
       is_testnet
     )
-    |> parse_order_response
   end
 
   @doc """
@@ -185,7 +185,6 @@ defmodule Dwarves.BinanceFutures do
       api_key,
       is_testnet
     )
-    |> parse_order_response
   end
 
   @doc """
@@ -195,16 +194,6 @@ defmodule Dwarves.BinanceFutures do
 
   Returns `{:ok, %{}}` or `{:error, reason}`
   """
-  def order_market_buy(%Binance.TradePair{from: from, to: to} = symbol, quantity)
-      when is_number(quantity)
-      when is_binary(from)
-      when is_binary(to) do
-    case find_symbol(symbol) do
-      {:ok, binance_symbol} -> order_market_buy(binance_symbol, quantity)
-      e -> e
-    end
-  end
-
   def order_market_buy(
         %{"symbol" => symbol, "quantity" => quantity} = params,
         api_secret,
@@ -229,16 +218,6 @@ defmodule Dwarves.BinanceFutures do
 
   Returns `{:ok, %{}}` or `{:error, reason}`
   """
-  def order_market_sell(%Binance.TradePair{from: from, to: to} = symbol, quantity)
-      when is_number(quantity)
-      when is_binary(from)
-      when is_binary(to) do
-    case find_symbol(symbol) do
-      {:ok, binance_symbol} -> order_market_sell(binance_symbol, quantity)
-      e -> e
-    end
-  end
-
   def order_market_sell(
         %{"symbol" => symbol, "quantity" => quantity} = params,
         api_secret,
@@ -254,20 +233,6 @@ defmodule Dwarves.BinanceFutures do
       api_key,
       is_testnet
     )
-  end
-
-  defp parse_order_response({:ok, response}) do
-    {:ok, Binance.OrderResponse.new(response)}
-  end
-
-  defp parse_order_response({
-         :error,
-         {
-           :binance_error,
-           %{code: -2010, msg: "Account has insufficient balance for requested action."} = reason
-         }
-       }) do
-    {:error, %Binance.InsufficientBalanceError{reason: reason}}
   end
 
   @doc """
@@ -363,7 +328,7 @@ defmodule Dwarves.BinanceFutures do
         {:error, {:binance_error, %{code: code, msg: msg}}}
 
       data ->
-        data
+        parse_batch_orders_response(data)
     end
   end
 
@@ -432,9 +397,9 @@ defmodule Dwarves.BinanceFutures do
     end
   end
 
-  def extract_order_params(
-        %{"symbol" => symbol, "side" => side, "type" => type, "quantity" => quantity} = params
-      ) do
+  defp extract_order_params(
+         %{"symbol" => symbol, "side" => side, "type" => type, "quantity" => quantity} = params
+       ) do
     %{
       symbol: symbol,
       side: side,
@@ -471,7 +436,7 @@ defmodule Dwarves.BinanceFutures do
     )
   end
 
-  def stringify(map = %{}) do
+  defp stringify(map = %{}) do
     kvString =
       map
       |> Map.to_list()
@@ -481,5 +446,32 @@ defmodule Dwarves.BinanceFutures do
       |> Enum.join(",")
 
     "{#{kvString}}"
+  end
+
+  def parse_order_response({:ok, response}) do
+    {:ok, Binance.OrderResponse.new(response)}
+  end
+
+  def parse_order_response({
+        :error,
+        {
+          :binance_error,
+          %{code: -2010, msg: "Account has insufficient balance for requested action."} = reason
+        }
+      }) do
+    {:error, %Binance.InsufficientBalanceError{reason: reason}}
+  end
+
+  def parse_batch_orders_response({
+        :ok,
+        responses
+      }) do
+    {:ok,
+     Enum.map(responses, fn res ->
+       case res do
+         %{"code" => code, "msg" => msg} -> %{"code" => code, "msg" => msg}
+         _ -> Binance.OrderResponse.new(res)
+       end
+     end)}
   end
 end
