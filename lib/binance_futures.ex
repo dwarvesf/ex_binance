@@ -93,31 +93,12 @@ defmodule Dwarves.BinanceFutures do
         api_key,
         is_testnet \\ false
       ) do
-    timestamp =
-      case params["timestamp"] do
-        # timestamp needs to be in milliseconds
-        nil ->
-          :os.system_time(:millisecond)
-
-        t ->
-          t
-      end
-
-    receiving_window =
-      case params["receiving_window"] do
-        nil ->
-          1000
-
-        t ->
-          t
-      end
-
     arguments =
       params
       |> extract_order_params()
       |> Map.merge(%{
-        recvWindow: receiving_window,
-        timestamp: timestamp
+        recvWindow: get_receiving_window(params["receiving_window"]),
+        timestamp: get_timestamp(params["timestamp"])
       })
 
     case HTTPClient.signed_request_binance(
@@ -283,25 +264,6 @@ defmodule Dwarves.BinanceFutures do
         api_key,
         is_testnet \\ false
       ) do
-    timestamp =
-      case params["timestamp"] do
-        # timestamp needs to be in milliseconds
-        nil ->
-          :os.system_time(:millisecond)
-
-        t ->
-          t
-      end
-
-    receiving_window =
-      case params["receiving_window"] do
-        nil ->
-          1000
-
-        t ->
-          t
-      end
-
     orders =
       params["batch_orders"]
       |> Enum.map(fn order ->
@@ -312,8 +274,8 @@ defmodule Dwarves.BinanceFutures do
 
     arguments = %{
       batchOrders: URI.encode_www_form("[#{orders}]"),
-      recvWindow: receiving_window,
-      timestamp: timestamp
+      recvWindow: get_receiving_window(params["receiving_window"]),
+      timestamp: get_timestamp(params["timestamp"])
     }
 
     case HTTPClient.signed_request_binance(
@@ -329,6 +291,56 @@ defmodule Dwarves.BinanceFutures do
 
       data ->
         parse_batch_orders_response(data)
+    end
+  end
+
+  @doc """
+  Change initial leverage
+
+  Symbol can be a binance symbol in the form of `"ETHBTC"` or `%Binance.TradePair{}`.
+
+  Returns `{:ok, %{}}` or `{:error, reason}`
+
+  ## Examples
+  ```
+  change_leverage(%{
+    "symbol" => "BTCUSDT", "leverage" => 5},
+    "api_secret",
+    "api_key",
+    true)
+  ```
+
+  Result: `{:ok, %{"leverage" => 5, "maxNotionalValue" => "50000000", "symbol" => "BTCUSDT"}}`
+  """
+  def change_leverage(
+        %{"symbol" => symbol, "leverage" => leverage} = params,
+        api_secret,
+        api_key,
+        is_testnet \\ false
+      )
+      when is_binary(symbol)
+      # target initial leverage: int from 1 to 125
+      when is_number(leverage) and leverage >= 1 and leverage <= 125 do
+    arguments = %{
+      symbol: symbol,
+      leverage: leverage,
+      recvWindow: get_receiving_window(params["receiving_window"]),
+      timestamp: get_timestamp(params["timestamp"])
+    }
+
+    case HTTPClient.signed_request_binance(
+           "/fapi/v1/leverage",
+           arguments,
+           :post,
+           api_secret,
+           api_key,
+           is_testnet
+         ) do
+      {:ok, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        data
     end
   end
 
@@ -473,5 +485,26 @@ defmodule Dwarves.BinanceFutures do
          _ -> Binance.OrderResponse.new(res)
        end
      end)}
+  end
+
+  defp get_timestamp(timestamp) do
+    case timestamp do
+      # timestamp needs to be in milliseconds
+      nil ->
+        :os.system_time(:millisecond)
+
+      val ->
+        val
+    end
+  end
+
+  defp get_receiving_window(receiving_window) do
+    case receiving_window do
+      nil ->
+        1000
+
+      val ->
+        val
+    end
   end
 end
