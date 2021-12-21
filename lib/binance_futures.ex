@@ -118,6 +118,26 @@ defmodule Dwarves.BinanceFutures do
     end
   end
 
+  def get_all_orders(api_key, secret_key, is_testnet \\ false) do
+    case HTTPClient.get_binance("/fapi/v1/allOrders", %{}, secret_key, api_key, is_testnet) do
+      {:error, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        parse_batch_orders_response(data)
+    end
+  end
+
+  def get_open_orders(api_key, secret_key, is_testnet \\ false) do
+    case HTTPClient.get_binance("/fapi/v1/openOrders", %{}, secret_key, api_key, is_testnet) do
+      {:error, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        parse_batch_orders_response(data)
+    end
+  end
+
   @doc """
   Creates a new **limit** **buy** order
 

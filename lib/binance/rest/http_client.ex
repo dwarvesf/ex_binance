@@ -39,6 +39,16 @@ defmodule Binance.Rest.HTTPClient do
     end
   end
 
+  def get_binance(url, params, secret_key, api_key, is_testnet) do
+    case prepare_request(url, params, secret_key, api_key) do
+      {:error, _} = error ->
+        error
+
+      {:ok, url, headers} ->
+        get_binance(url, headers, is_testnet)
+    end
+  end
+
   def delete_binance(url, params, secret_key, api_key) do
     case prepare_request(url, params, secret_key, api_key) do
       {:error, _} = error ->
