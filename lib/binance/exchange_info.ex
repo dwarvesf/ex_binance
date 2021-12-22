@@ -8,7 +8,8 @@ defmodule Binance.ExchangeInfo do
     :server_time,
     :rate_limits,
     :exchange_filters,
-    :symbols
+    :symbols,
+    :assets
   ]
 
   use ExConstructor

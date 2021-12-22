@@ -18,15 +18,24 @@ defmodule Binance.Account do
   """
 
   defstruct [
-    :maker_commission,
-    :taker_commission,
-    :buyer_commission,
-    :seller_commission,
+    :fee_tier,
     :can_trade,
-    :can_withdrawl,
     :can_deposit,
+    :can_withdraw,
     :update_time,
-    :balances
+    :total_initial_margin,
+    :total_maint_margin,
+    :total_wallet_balance,
+    :total_unrealized_profit,
+    :total_margin_balance,
+    :total_position_initial_margin,
+    :total_open_order_initial_margin,
+    :total_cross_wallet_balance,
+    :total_cross_un_pnl,
+    :available_balance,
+    :max_withdraw_amount,
+    :assets,
+    :positions
   ]
 
   use ExConstructor
