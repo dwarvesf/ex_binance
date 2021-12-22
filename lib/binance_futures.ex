@@ -15,7 +15,7 @@ defmodule Dwarves.BinanceFutures do
   Pings binance API. Returns `{:ok, %{}}` if successful, `{:error, reason}` otherwise
   """
   def ping(is_testnet \\ false) do
-    HTTPClient.get_binance("/fapi/v1/ping", is_testnet)
+    HTTPClient.get_binance("/fapi/v1/ping", [], is_testnet)
   end
 
   # Ticker
@@ -38,7 +38,7 @@ defmodule Dwarves.BinanceFutures do
   ```
   """
   def get_all_prices(is_testnet \\ false) do
-    case HTTPClient.get_binance("/fapi/v1/ticker/price", is_testnet) do
+    case HTTPClient.get_binance("/fapi/v1/ticker/price", [], is_testnet) do
       {:ok, data} ->
         {:ok, Enum.map(data, &Binance.SymbolPrice.new(&1))}
 
@@ -135,6 +135,84 @@ defmodule Dwarves.BinanceFutures do
 
       data ->
         parse_batch_orders_response(data)
+    end
+  end
+
+  @doc """
+  get exchange info from binance
+
+  Returns `{:ok, %{}}` or `{:error, reason}`.
+
+  In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
+
+  Please read https://binance-docs.github.io/apidocs/futures/en/#exchange-information to understand all the parameters
+
+  ## Examples
+  ```
+  get_exchange_info(true)
+  ```
+
+  Result:
+  ```
+  {:ok,
+   %{
+      "timezone": "UTC",
+      "serverTime": 1640141838081,
+      "futuresType": "U_MARGINED",
+      "symbols": [...],
+      ...
+   }
+  }
+  or
+  {:error, {:binance_error, %{code: -2019, msg: "Margin is insufficient."}}}
+  ```
+  """
+  def get_exchange_info(is_testnet \\ false) do
+    case HTTPClient.get_binance("/fapi/v1/exchangeInfo", [], is_testnet) do
+      {:error, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        parse_exchange_info(data)
+    end
+  end
+
+  @doc """
+  get account info from binance
+
+  Returns `{:ok, %{}}` or `{:error, reason}`.
+
+  In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
+
+  Please read https://binance-docs.github.io/apidocs/futures/en/#account-information-v2-user_data to understand all the parameters
+
+  ## Examples
+  ```
+  get_account_info("api_key", "api_secret", true)
+  ```
+
+  Result:
+  ```
+  {:ok,
+   %{
+      "timezone": "UTC",
+      "serverTime": 1640141838081,
+      "futuresType": "U_MARGINED",
+      "symbols": [...],
+      ...
+   }
+  }
+  or
+  {:error, {:binance_error, %{code: -2019, msg: "Margin is insufficient."}}}
+  ```
+  """
+  def get_account_info(api_key, secret_key, is_testnet \\ false) do
+    case HTTPClient.get_binance("/fapi/v2/account", %{}, secret_key, api_key, is_testnet) do
+      {:error, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        parse_account_info(data)
     end
   end
 
@@ -478,6 +556,83 @@ defmodule Dwarves.BinanceFutures do
       |> Enum.join(",")
 
     "{#{kvString}}"
+  end
+
+  def parse_exchange_info({:ok, response}) do
+    exchange_info =
+      response
+      |> Binance.ExchangeInfo.new()
+
+    symbols =
+      exchange_info.symbols
+      |> Enum.map(fn itm ->
+        itm |> Binance.Symbol.new()
+      end)
+
+    assets =
+      exchange_info.assets
+      |> Enum.map(fn itm ->
+        itm |> Binance.SymbolAsset.new()
+      end)
+
+    rate_limits =
+      exchange_info.rate_limits
+      |> Enum.map(fn itm ->
+        itm |> Binance.SymbolRateLimit.new()
+      end)
+
+    exchange_info =
+      exchange_info
+      |> Map.put(:symbols, symbols)
+      |> Map.put(:assets, assets)
+      |> Map.put(:rate_limits, rate_limits)
+
+    {:ok, exchange_info}
+  end
+
+  def parse_exchange_info({
+        :error,
+        {
+          :binance_error,
+          %{code: -2010, msg: _msg} = reason
+        }
+      }) do
+    {:error, %Binance.InsufficientBalanceError{reason: reason}}
+  end
+
+  def parse_account_info({:ok, response}) do
+    account_info =
+      response
+      |> Binance.Account.new()
+
+    assets =
+      account_info.assets
+      |> Enum.map(fn itm ->
+        itm |> Binance.AccountAsset.new()
+      end)
+
+    positions =
+      account_info.positions
+      |> Enum.map(fn itm ->
+        itm |> Binance.AccountPosition.new()
+      end)
+
+    account_info =
+      account_info
+      |> Map.put(:assets, assets)
+      |> Map.put(:positions, positions)
+
+    {:ok, account_info}
+  end
+
+  def parse_account_info({
+        :error,
+        {
+          :binance_error,
+          %{code: -2010, msg: _msg} = reason
+        }
+      }) do
+    {:error, %Binance.InsufficientBalanceError{reason: reason}}
   end
 
   def parse_order_response({:ok, response}) do
