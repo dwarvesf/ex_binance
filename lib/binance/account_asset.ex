@@ -4,20 +4,6 @@ defmodule Binance.AccountAsset do
 
   ```
   defstruct [
-    :maker_commission,
-    :taker_commission,
-    :buyer_commission,
-    :seller_commission,
-    :can_trade,
-    :can_withdrawl,
-    :can_deposit,
-    :update_time,
-    :balances
-  ]
-  ```
-  """
-
-  defstruct [
     :asset,
     :wallet_balance,
     :unrealized_profit,
@@ -31,6 +17,26 @@ defmodule Binance.AccountAsset do
     :available_balance,
     :max_withdraw_amount,
     :margin_available,
+    :update_time
+  ]
+  ```
+  """
+
+  defstruct [
+    :symbol,
+    :initial_margin,
+    :maint_margin,
+    :unrealized_profit,
+    :position_initial_margin,
+    :open_order_initial_margin,
+    :leverage,
+    :isolated,
+    :entry_price,
+    :max_notional,
+    :bid_notional,
+    :ask_notional,
+    :position_side,
+    :position_amt,
     :update_time
   ]
 
