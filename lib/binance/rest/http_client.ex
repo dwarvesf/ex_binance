@@ -126,6 +126,48 @@ defmodule Binance.Rest.HTTPClient do
     end
   end
 
+  def signed_querystring_request_binance(
+        url,
+        params,
+        method,
+        api_secret,
+        api_key,
+        is_testnet \\ false
+      ) do
+    argument_string =
+      params
+      |> prepare_query_params()
+
+    # generate signature
+    signature =
+      generate_signature(
+        :sha256,
+        api_secret,
+        argument_string
+      )
+      |> Base.encode16()
+
+    query = "#{argument_string}&signature=#{signature}"
+
+    endpoint = get_endpoint(is_testnet)
+
+    case apply(HTTPoison, method, [
+           "#{endpoint}#{url}?#{query}",
+           [
+             {"X-MBX-APIKEY", api_key}
+           ]
+         ]) do
+      {:error, err} ->
+        {:error, {:http_error, err}}
+
+      {:ok, response} ->
+        case Poison.decode(response.body) do
+          {:ok, data} -> {:ok, data}
+          {:error, err} -> {:error, {:poison_decode_error, err}}
+        end
+    end
+  end
+
   @doc """
   You need to send an empty body and the api key
   to be able to create a new listening key.

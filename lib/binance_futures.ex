@@ -442,6 +442,154 @@ defmodule Dwarves.BinanceFutures do
     end
   end
 
+  @doc """
+  Cancel an order
+
+  Symbol can be a binance symbol in the form of `"ETHBTC"` or `%Binance.TradePair{}`.
+  Either `order_id` or `orig_client_order_id` must be sent.
+
+  Returns `{:ok, %{}}` or `{:error, reason}`
+
+  ## Examples
+  ```
+  cancel_order(%{
+    "symbol" => "BTCUSDT",
+    "order_id" => 39334117676
+    },
+    "api_secret",
+    "api_key",
+    true)
+  ```
+
+  Result: `{:ok,
+  %{
+   "avgPrice" => "0.00000",
+   "clientOrderId" => "web_SadTLJTOB5f85NPLxaRo",
+   "closePosition" => false,
+   "cumQty" => "0",
+   "cumQuote" => "0",
+   "executedQty" => "0",
+   "orderId" => 39334117676,
+   "origQty" => "0.015",
+   "origType" => "LIMIT",
+   "positionSide" => "BOTH",
+   "price" => "40000",
+   "priceProtect" => false,
+   "reduceOnly" => false,
+   "side" => "BUY",
+   "status" => "CANCELED",
+   "stopPrice" => "0",
+   "symbol" => "BTCUSDT",
+   "timeInForce" => "GTC",
+   "type" => "LIMIT",
+   "updateTime" => 1640710829584,
+   "workingType" => "CONTRACT_PRICE"
+  }}
+  `
+  """
+  def cancel_order(
+        %{"symbol" => symbol} = params,
+        api_secret,
+        api_key,
+        is_testnet \\ false
+      )
+      when is_binary(symbol) do
+    arguments =
+      %{
+        symbol: symbol,
+        recvWindow: get_receiving_window(params["receiving_window"]),
+        timestamp: get_timestamp(params["timestamp"])
+      }
+      |> Map.merge(
+        unless(
+          is_nil(params["order_id"]),
+          do: %{orderId: params["order_id"]},
+          else: %{}
+        )
+      )
+      |> Map.merge(
+        unless(
+          is_nil(params["orig_client_order_id"]),
+          do: %{origClientOrderId: params["orig_client_order_id"]},
+          else: %{}
+        )
+      )
+
+    case HTTPClient.signed_querystring_request_binance(
+           "/fapi/v1/order",
+           arguments,
+           :delete,
+           api_secret,
+           api_key,
+           is_testnet
+         ) do
+      {:ok, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        data
+    end
+  end
+
+  @doc """
+  Cancel all open orders of symbol
+
+  Symbol can be a binance symbol in the form of `"ETHBTC"` or `%Binance.TradePair{}`.
+
+  Returns `{:ok,
+    %{
+      "code": "200",
+      "msg": "The operation of cancel all open order is done."
+    }
+  }` or `{:error, reason}`
+
+  ## Examples
+  ```
+  cancel_all_open_orders(%{
+      "symbol" => "BTCUSDT"
+    },
+    "api_secret",
+    "api_key",
+    true)
+  ```
+
+  Result: `{:ok,
+    %{
+      "code": "200",
+      "msg": "The operation of cancel all open order is done."
+    }
+  }
+  `
+  """
+  def cancel_all_open_orders(
+        %{"symbol" => symbol} = params,
+        api_secret,
+        api_key,
+        is_testnet \\ false
+      )
+      when is_binary(symbol) do
+    arguments = %{
+      symbol: symbol,
+      recvWindow: get_receiving_window(params["receiving_window"]),
+      timestamp: get_timestamp(params["timestamp"])
+    }
+
+    case HTTPClient.signed_querystring_request_binance(
+           "/fapi/v1/allOpenOrders",
+           arguments,
+           :delete,
+           api_secret,
+           api_key,
+           is_testnet
+         ) do
+      {:ok, %{"code" => 200, "msg" => msg}} ->
+        {:ok, %{code: 200, msg: msg}}
+
+      {:ok, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+    end
+  end
+
   # Misc
 
   defp format_price(num) when is_float(num), do: :erlang.float_to_binary(num, [{:decimals, 8}])
