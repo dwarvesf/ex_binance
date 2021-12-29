@@ -119,7 +119,13 @@ defmodule Dwarves.BinanceFutures do
   end
 
   def get_all_orders(api_key, secret_key, is_testnet \\ false) do
-    case HTTPClient.get_binance("/fapi/v1/allOrders", %{}, secret_key, api_key, is_testnet) do
+    case HTTPClient.get_binance(
+           "/fapi/v1/allOrders",
+           %{limit: 1000},
+           secret_key,
+           api_key,
+           is_testnet
+         ) do
       {:error, %{"code" => code, "msg" => msg}} ->
         {:error, {:binance_error, %{code: code, msg: msg}}}
 
