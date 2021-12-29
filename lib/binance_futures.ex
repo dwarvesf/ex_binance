@@ -527,7 +527,7 @@ defmodule Dwarves.BinanceFutures do
         {:error, {:binance_error, %{code: code, msg: msg}}}
 
       data ->
-        data
+        data |> parse_order_response
     end
   end
 
