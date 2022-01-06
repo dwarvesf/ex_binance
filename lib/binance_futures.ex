@@ -138,6 +138,27 @@ defmodule Dwarves.BinanceFutures do
     end
   end
 
+  def get_income(api_key, secret_key, is_testnet \\ false) do
+    case HTTPClient.get_binance("/fapi/v1/income", %{}, secret_key, api_key, is_testnet) do
+      {:error, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      {:ok, data} ->
+        filtered_data =
+          data
+          |> Enum.map(fn %{"income" => income, "time" => time} ->
+            date = DateTime.to_date(DateTime.from_unix!(time, :millisecond))
+            {f_income, _rmd} = Float.parse(income)
+            {date, f_income}
+          end)
+
+        Enum.group_by(filtered_data, fn {date, _income} -> date end, fn {_date, income} ->
+          income
+        end)
+        |> Enum.map(fn {k, v} -> {k, Enum.sum(v)} end)
+    end
+  end
+
   @doc """
   get exchange info from binance
 
