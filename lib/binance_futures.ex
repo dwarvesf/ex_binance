@@ -118,13 +118,64 @@ defmodule Dwarves.BinanceFutures do
     end
   end
 
+  @doc """
+  Get all order on binance
+
+  Returns `{:ok, %{}}` or `{:error, reason}`.
+
+  In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
+
+  Please read https://binance-docs.github.io/apidocs/futures/en/#current-all-open-orders-user_data to understand all the parameters
+
+  ## Examples
+  ```
+  get_all_orders(
+    "api_key",
+    "api_secret",
+    %{"symbol" => "BTCUSDT", },
+    true
+  )
+  ```
+
+  Result:
+  ```
+  {:ok,
+  [
+    %Binance.OrderResponse{
+      avg_price: "43018.24000",
+      client_order_id: "web_Y4X2QLr0Inpc7MQYsvuf",
+      close_position: false,
+      cum_quote: "43018.24000",
+      executed_qty: "1",
+      order_id: 2960645730,
+      orig_qty: "1",
+      orig_type: "LIMIT",
+      position_side: "BOTH",
+      price: "43051.03",
+      price_protect: false,
+      reduce_only: false,
+      side: "BUY",
+      status: "FILLED",
+      stop_price: "0",
+      symbol: "BTCUSDT",
+      time: 1641442426359,
+      time_in_force: "GTC",
+      type: "LIMIT",
+      update_time: 1641442426359,
+      working_type: "CONTRACT_PRICE"
+   }
+  ]}
+  or
+  {:error, {:binance_error, %{code: -2019, msg: "Margin is insufficient."}}}
+  ```
+  """
   def get_all_orders(api_key, secret_key, params, is_testnet \\ false) do
     binance_params = %{
       symbol: params["symbol"],
       orderId: params["orderId"],
       startTime: params["startTime"],
       endTime: params["endTime"],
-      limit: params["limit"]
+      limit: 1000
     }
 
     case HTTPClient.get_binance(
