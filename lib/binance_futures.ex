@@ -132,7 +132,7 @@ defmodule Dwarves.BinanceFutures do
   get_all_orders(
     "api_key",
     "api_secret",
-    %{"symbol" => "BTCUSDT", },
+    %{"symbol" => "BTCUSDT"},
     true
   )
   ```
