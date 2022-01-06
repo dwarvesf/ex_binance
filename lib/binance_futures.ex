@@ -118,10 +118,18 @@ defmodule Dwarves.BinanceFutures do
     end
   end
 
-  def get_all_orders(api_key, secret_key, is_testnet \\ false) do
+  def get_all_orders(api_key, secret_key, params, is_testnet \\ false) do
+    binance_params = %{
+      symbol: params["symbol"],
+      orderId: params["orderId"],
+      startTime: params["startTime"],
+      endTime: params["endTime"],
+      limit: params["limit"]
+    }
+
     case HTTPClient.get_binance(
            "/fapi/v1/allOrders",
-           %{limit: 1000},
+           binance_params,
            secret_key,
            api_key,
            is_testnet
