@@ -910,7 +910,7 @@ defmodule Dwarves.BinanceFutures do
   defp get_receiving_window(receiving_window) do
     case receiving_window do
       nil ->
-        1000
+        5000
 
       val ->
         val
