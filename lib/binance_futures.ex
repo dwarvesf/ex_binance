@@ -1,21 +1,34 @@
 defmodule Dwarves.BinanceFutures do
   alias Binance.Rest.HTTPClient
 
+  @endpoint Application.get_env(
+              :dwarves_binancex,
+              :perpetual_futures_url,
+              "https://fapi.binance.com"
+            )
+  @testnet_endpoint Application.get_env(
+                      :dwarves_binancex,
+                      :perpetual_futures_testnet_url,
+                      "https://testnet.binancefuture.com"
+                    )
+
   require Logger
+
+  def get_endpoint(is_testnet) do
+    case is_testnet do
+      true -> @testnet_endpoint
+      false -> @endpoint
+    end
+  end
 
   # Server
 
-  @spec ping ::
-          {:error,
-           {:http_error, HTTPoison.Error.t()}
-           | {:poison_decode_error, Poison.ParseError.t()}
-           | map}
-          | {:ok, false | nil | true | binary | list | number | map}
   @doc """
   Pings binance API. Returns `{:ok, %{}}` if successful, `{:error, reason}` otherwise
   """
   def ping(is_testnet \\ false) do
-    HTTPClient.get_binance("/fapi/v1/ping", [], is_testnet)
+    endpoint = get_endpoint(is_testnet)
+    HTTPClient.get_binance("#{endpoint}/fapi/v1/ping", [])
   end
 
   # Ticker
@@ -38,7 +51,9 @@ defmodule Dwarves.BinanceFutures do
   ```
   """
   def get_all_prices(is_testnet \\ false) do
-    case HTTPClient.get_binance("/fapi/v1/ticker/price", [], is_testnet) do
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.get_binance("#{endpoint}/fapi/v1/ticker/price", []) do
       {:ok, data} ->
         {:ok, Enum.map(data, &Binance.SymbolPrice.new(&1))}
 
@@ -101,13 +116,14 @@ defmodule Dwarves.BinanceFutures do
         timestamp: get_timestamp(params["timestamp"])
       })
 
+    endpoint = get_endpoint(is_testnet)
+
     case HTTPClient.signed_request_binance(
-           "/fapi/v1/order",
+           "#{endpoint}/fapi/v1/order",
            arguments,
            :post,
            api_secret,
-           api_key,
-           is_testnet
+           api_key
          ) do
       {:ok, %{"code" => code, "msg" => msg}} ->
         {:error, {:binance_error, %{code: code, msg: msg}}}
@@ -178,12 +194,13 @@ defmodule Dwarves.BinanceFutures do
       limit: 1000
     }
 
+    endpoint = get_endpoint(is_testnet)
+
     case HTTPClient.get_binance(
-           "/fapi/v1/allOrders",
+           "#{endpoint}/fapi/v1/allOrders",
            binance_params,
            secret_key,
-           api_key,
-           is_testnet
+           api_key
          ) do
       {:error, %{"code" => code, "msg" => msg}} ->
         {:error, {:binance_error, %{code: code, msg: msg}}}
@@ -194,7 +211,14 @@ defmodule Dwarves.BinanceFutures do
   end
 
   def get_open_orders(api_key, secret_key, is_testnet \\ false) do
-    case HTTPClient.get_binance("/fapi/v1/openOrders", %{}, secret_key, api_key, is_testnet) do
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.get_binance(
+           "#{endpoint}/fapi/v1/openOrders",
+           %{},
+           secret_key,
+           api_key
+         ) do
       {:error, %{"code" => code, "msg" => msg}} ->
         {:error, {:binance_error, %{code: code, msg: msg}}}
 
@@ -204,7 +228,14 @@ defmodule Dwarves.BinanceFutures do
   end
 
   def get_income(api_key, secret_key, is_testnet \\ false) do
-    case HTTPClient.get_binance("/fapi/v1/income", %{}, secret_key, api_key, is_testnet) do
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.get_binance(
+           "#{endpoint}/fapi/v1/income",
+           %{},
+           secret_key,
+           api_key
+         ) do
       {:error, %{"code" => code, "msg" => msg}} ->
         {:error, {:binance_error, %{code: code, msg: msg}}}
 
@@ -254,7 +285,9 @@ defmodule Dwarves.BinanceFutures do
   ```
   """
   def get_exchange_info(is_testnet \\ false) do
-    case HTTPClient.get_binance("/fapi/v1/exchangeInfo", [], is_testnet) do
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.get_binance("#{endpoint}/fapi/v1/exchangeInfo", []) do
       {:error, %{"code" => code, "msg" => msg}} ->
         {:error, {:binance_error, %{code: code, msg: msg}}}
 
@@ -293,7 +326,14 @@ defmodule Dwarves.BinanceFutures do
   ```
   """
   def get_account_info(api_key, secret_key, is_testnet \\ false) do
-    case HTTPClient.get_binance("/fapi/v2/account", %{}, secret_key, api_key, is_testnet) do
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.get_binance(
+           "#{endpoint}/fapi/v2/account",
+           %{},
+           secret_key,
+           api_key
+         ) do
       {:error, %{"code" => code, "msg" => msg}} ->
         {:error, {:binance_error, %{code: code, msg: msg}}}
 
@@ -462,13 +502,14 @@ defmodule Dwarves.BinanceFutures do
       timestamp: get_timestamp(params["timestamp"])
     }
 
+    endpoint = get_endpoint(is_testnet)
+
     case HTTPClient.signed_request_binance(
-           "/fapi/v1/batchOrders",
+           "#{endpoint}/fapi/v1/batchOrders",
            arguments,
            :post,
            api_secret,
-           api_key,
-           is_testnet
+           api_key
          ) do
       {:ok, %{"code" => code, "msg" => msg}} ->
         {:error, {:binance_error, %{code: code, msg: msg}}}
@@ -512,13 +553,14 @@ defmodule Dwarves.BinanceFutures do
       timestamp: get_timestamp(params["timestamp"])
     }
 
+    endpoint = get_endpoint(is_testnet)
+
     case HTTPClient.signed_request_binance(
-           "/fapi/v1/leverage",
+           "#{endpoint}/fapi/v1/leverage",
            arguments,
            :post,
            api_secret,
-           api_key,
-           is_testnet
+           api_key
          ) do
       {:ok, %{"code" => code, "msg" => msg}} ->
         {:error, {:binance_error, %{code: code, msg: msg}}}
@@ -601,13 +643,14 @@ defmodule Dwarves.BinanceFutures do
         )
       )
 
+    endpoint = get_endpoint(is_testnet)
+
     case HTTPClient.signed_querystring_request_binance(
-           "/fapi/v1/order",
+           "#{endpoint}/fapi/v1/order",
            arguments,
            :delete,
            api_secret,
-           api_key,
-           is_testnet
+           api_key
          ) do
       {:ok, %{"code" => code, "msg" => msg}} ->
         {:error, {:binance_error, %{code: code, msg: msg}}}
@@ -660,13 +703,14 @@ defmodule Dwarves.BinanceFutures do
       timestamp: get_timestamp(params["timestamp"])
     }
 
+    endpoint = get_endpoint(is_testnet)
+
     case HTTPClient.signed_querystring_request_binance(
-           "/fapi/v1/allOpenOrders",
+           "#{endpoint}/fapi/v1/allOpenOrders",
            arguments,
            :delete,
            api_secret,
-           api_key,
-           is_testnet
+           api_key
          ) do
       {:ok, %{"code" => 200, "msg" => msg}} ->
         {:ok, %{code: 200, msg: msg}}
