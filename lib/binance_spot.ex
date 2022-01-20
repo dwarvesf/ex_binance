@@ -39,7 +39,7 @@ defmodule Dwarves.BinanceSpot do
 
   In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
 
-  Please read https://binance-docs.github.io/apidocs/futures/en/#account-information-v2-user_data to understand all the parameters
+  Please read https://binance-docs.github.io/apidocs/spot/en/#daily-account-snapshot-user_data to understand all the parameters
 
   ## Examples
   ```
