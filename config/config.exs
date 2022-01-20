@@ -3,8 +3,10 @@
 use Mix.Config
 
 config :dwarves_binancex,
-  end_point: "https://fapi.binance.com",
-  testnet_end_point: "https://testnet.binancefuture.com"
+  perpetual_futures_url: "https://fapi.binance.com",
+  perpetual_futures_testnet_url: "https://testnet.binancefuture.com",
+  spot_url: "https://api.binance.com",
+  spot_testnet_url: "https://testnet.binance.vision"
 
 config :exvcr,
   filter_request_headers: [

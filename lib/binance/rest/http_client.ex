@@ -1,31 +1,13 @@
 defmodule Binance.Rest.HTTPClient do
-  @endpoint Application.get_env(:dwarves_binancex, :end_point, "https://fapi.binance.com")
-  @testnet_endpoint Application.get_env(
-                      :dwarves_binancex,
-                      :testnet_end_point,
-                      "https://testnet.binancefuture.com"
-                    )
-
   require Logger
 
-  def get_endpoint(is_testnet) do
-    case is_testnet do
-      true -> @testnet_endpoint
-      false -> @endpoint
-    end
-  end
-
-  def get_binance(url, headers \\ [], is_testnet \\ false) do
-    endpoint = get_endpoint(is_testnet)
-
-    HTTPoison.get("#{endpoint}#{url}", headers)
+  def get_binance(url, headers \\ []) do
+    HTTPoison.get("#{url}", headers)
     |> parse_response
   end
 
-  def delete_binance(url, headers \\ [], is_testnet \\ false) do
-    endpoint = get_endpoint(is_testnet)
-
-    HTTPoison.delete("#{endpoint}#{url}", headers)
+  def delete_binance(url, headers \\ []) do
+    HTTPoison.delete("#{url}", headers)
     |> parse_response
   end
 
@@ -36,16 +18,6 @@ defmodule Binance.Rest.HTTPClient do
 
       {:ok, url, headers} ->
         get_binance(url, headers)
-    end
-  end
-
-  def get_binance(url, params, secret_key, api_key, is_testnet) do
-    case prepare_request(url, params, secret_key, api_key) do
-      {:error, _} = error ->
-        error
-
-      {:ok, url, headers} ->
-        get_binance(url, headers, is_testnet)
     end
   end
 
@@ -89,7 +61,7 @@ defmodule Binance.Rest.HTTPClient do
     end
   end
 
-  def signed_request_binance(url, params, method, api_secret, api_key, is_testnet \\ false) do
+  def signed_request_binance(url, params, method, api_secret, api_key) do
     argument_string =
       params
       |> prepare_query_params()
@@ -105,10 +77,8 @@ defmodule Binance.Rest.HTTPClient do
 
     body = "#{argument_string}&signature=#{signature}"
 
-    endpoint = get_endpoint(is_testnet)
-
     case apply(HTTPoison, method, [
-           "#{endpoint}#{url}",
+           "#{url}",
            body,
            [
              {"X-MBX-APIKEY", api_key},
@@ -131,8 +101,7 @@ defmodule Binance.Rest.HTTPClient do
         params,
         method,
         api_secret,
-        api_key,
-        is_testnet \\ false
+        api_key
       ) do
     argument_string =
       params
@@ -149,10 +118,8 @@ defmodule Binance.Rest.HTTPClient do
 
     query = "#{argument_string}&signature=#{signature}"
 
-    endpoint = get_endpoint(is_testnet)
-
     case apply(HTTPoison, method, [
-           "#{endpoint}#{url}?#{query}",
+           "#{url}?#{query}",
            [
              {"X-MBX-APIKEY", api_key}
            ]
@@ -173,12 +140,12 @@ defmodule Binance.Rest.HTTPClient do
   to be able to create a new listening key.
 
   """
-  def unsigned_request_binance(url, data, method, is_testnet \\ false) do
+  def unsigned_request_binance(url, data, method) do
     headers = [
       {"X-MBX-APIKEY", Application.get_env(:binance_futures, :api_key)}
     ]
 
-    case do_unsigned_request(url, data, method, headers, is_testnet) do
+    case do_unsigned_request(url, data, method, headers) do
       {:error, err} ->
         {:error, {:http_error, err}}
 
@@ -190,33 +157,27 @@ defmodule Binance.Rest.HTTPClient do
     end
   end
 
-  defp do_unsigned_request(url, nil, method, headers, is_testnet) do
-    endpoint = get_endpoint(is_testnet)
-
+  defp do_unsigned_request(url, nil, method, headers) do
     apply(HTTPoison, method, [
-      "#{endpoint}#{url}",
+      "#{url}",
       headers
     ])
   end
 
-  defp do_unsigned_request(url, data, :get, headers, is_testnet) do
+  defp do_unsigned_request(url, data, :get, headers) do
     argument_string =
       data
       |> prepare_query_params()
 
-    endpoint = get_endpoint(is_testnet)
-
     apply(HTTPoison, :get, [
-      "#{endpoint}#{url}" <> "?#{argument_string}",
+      "#{url}" <> "?#{argument_string}",
       headers
     ])
   end
 
-  defp do_unsigned_request(url, body, method, headers, is_testnet) do
-    endpoint = get_endpoint(is_testnet)
-
+  defp do_unsigned_request(url, body, method, headers) do
     apply(HTTPoison, method, [
-      "#{endpoint}#{url}",
+      "#{url}",
       body,
       headers
     ])
@@ -246,6 +207,7 @@ defmodule Binance.Rest.HTTPClient do
 
   defp parse_response_body({:ok, data}) do
     case data do
+      %{"code" => 200, "msg" => ""} = data -> {:ok, data}
       %{"code" => _c, "msg" => _m} = error -> {:error, error}
       _ -> {:ok, data}
     end
