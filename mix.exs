@@ -4,7 +4,7 @@ defmodule Binancex.MixProject do
   def project do
     [
       app: :dwarves_binancex,
-      version: "0.1.10",
+      version: "0.1.11",
       elixir: "~> 1.12",
       start_permanent: Mix.env() == :prod,
       description: description(),
