@@ -822,6 +822,18 @@ defmodule Dwarves.BinanceFutures do
     |> Map.merge(
       unless(is_nil(params["price"]), do: %{price: format_price(params["price"])}, else: %{})
     )
+    |> Map.merge(
+      unless(is_nil(params["reduce_only"]),
+        do: %{reduceOnly: format_price(params["reduce_only"])},
+        else: %{}
+      )
+    )
+    |> Map.merge(
+      unless(is_nil(params["close_position"]),
+        do: %{closePosition: format_price(params["close_position"])},
+        else: %{}
+      )
+    )
   end
 
   defp stringify(map = %{}) do
