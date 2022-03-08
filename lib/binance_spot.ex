@@ -113,6 +113,94 @@ defmodule Dwarves.BinanceSpot do
     end
   end
 
+  # Corporate (sub-account)
+  @doc """
+  Universal Transfer (For Master Account).
+
+  Returns `{:ok, %{}}` or `{:error, reason}`.
+
+  In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
+
+  Please read https://binance-docs.github.io/apidocs/spot/en/#universal-transfer-for-master-account to understand all the parameters
+
+  ## Examples
+  ```
+  universal_transfer(%{"from_email" => "email@gmail.com", "to_email" => "email@gmail.com", "from_account_type" => "USDT_FUTURE", "to_account_type" => "SPOT", "asset" => "USDT", "amount" => 100},"api_key",  "secret_key")
+  ```
+
+  Result:
+  ```
+  {:ok,
+   %{
+      tranId: "tranId"
+    }
+  or
+  {:error, {:binance_error, %{
+        code: -1000,
+        msg: "No enum constant com.binance.accountsubuser.enums.TranferWay.FUTURE_TO_FUTURE"
+      }
+    }
+  }
+  ```
+  """
+  def universal_transfer(
+        %{
+          "from_account_type" => from_account_type,
+          "to_account_type" => to_account_type,
+          "asset" => asset,
+          "amount" => amount
+        } = params,
+        api_key,
+        api_secret
+      ) do
+    arguments =
+      %{
+        fromAccountType: from_account_type,
+        toAccountType: to_account_type,
+        asset: asset,
+        amount: amount,
+        recvWindow: get_receiving_window(params["receiving_window"]),
+        timestamp: get_timestamp(params["timestamp"])
+      }
+      |> Map.merge(
+        unless(
+          is_nil(params["from_email"]),
+          do: %{fromEmail: params["from_email"]},
+          else: %{}
+        )
+      )
+      |> Map.merge(
+        unless(
+          is_nil(params["to_email"]),
+          do: %{toEmail: params["to_email"]},
+          else: %{}
+        )
+      )
+      |> Map.merge(
+        unless(
+          is_nil(params["client_tran_id"]),
+          do: %{clientTranId: params["client_tran_id"]},
+          else: %{}
+        )
+      )
+
+    endpoint = get_endpoint(false)
+
+    case HTTPClient.signed_request_binance(
+           "#{endpoint}/sapi/v1/sub-account/universalTransfer",
+           arguments,
+           :post,
+           api_secret,
+           api_key
+         ) do
+      {:ok, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        data
+    end
+  end
+
   # Misc
 
   defp get_timestamp(timestamp) do
