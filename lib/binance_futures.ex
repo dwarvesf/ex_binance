@@ -227,6 +227,92 @@ defmodule Dwarves.BinanceFutures do
     end
   end
 
+  @doc """
+  Get order info on binance
+
+  Returns `{:ok, %{}}` or `{:error, reason}`.
+
+  In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
+
+  Please read https://binance-docs.github.io/apidocs/futures/en/#query-order-user_data to understand all the parameters
+
+  ## Examples
+  ```
+  get_order(
+    "api_key",
+    "api_secret",
+    %{"symbol" => "BTCUSDT", "order_id" => "3006555462", "orig_client_order_id" => "hol0wkgRc922IB5rnjLjxR0"},
+    true
+  )
+  ```
+
+  Result:
+  ```
+  {:ok,
+    %Binance.OrderResponse{
+      avg_price: "0.00000",
+      client_order_id: "hol0wkgRc922IB5rnjLjxR0",
+      close_position: false,
+      cum_quote: "0",
+      executed_qty: "0",
+      order_id: 3006555462,
+      orig_qty: "0.002",
+      orig_type: "LIMIT",
+      position_side: "BOTH",
+      price: "40000",
+      price_protect: false,
+      reduce_only: false,
+      side: "BUY",
+      status: "CANCELED",
+      stop_price: "0",
+      symbol: "BTCUSDT",
+      time: 1648548582813,
+      time_in_force: "GTC",
+      type: "LIMIT",
+      update_time: 1648613715497,
+      working_type: "CONTRACT_PRICE"
+    }
+  }
+  or
+  {:error, {:binance_error, %{code: -2019, msg: "Margin is insufficient."}}}
+  ```
+  """
+  def get_order(api_key, secret_key, %{"symbol" => symbol} = params, is_testnet \\ false) do
+    binance_params =
+      %{
+        symbol: symbol
+      }
+      |> Map.merge(
+        unless(
+          is_nil(params["order_id"]),
+          do: %{orderId: params["order_id"]},
+          else: %{}
+        )
+      )
+      |> Map.merge(
+        unless(
+          is_nil(params["orig_client_order_id"]),
+          do: %{origClientOrderId: params["orig_client_order_id"]},
+          else: %{}
+        )
+      )
+
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.get_binance(
+           "#{endpoint}/fapi/v1/order",
+           binance_params,
+           secret_key,
+           api_key
+         ) do
+      {:error, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        parse_order_response(data)
+    end
+  end
+
   def get_income(api_key, secret_key, is_testnet \\ false) do
     endpoint = get_endpoint(is_testnet)
 
