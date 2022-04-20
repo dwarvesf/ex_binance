@@ -831,7 +831,7 @@ defmodule Dwarves.BinanceFutures do
   ```
   cancel_multi_orders(%{
       "symbol" => "BTCUSDT",
-      "order_id_list" => "[1234567,2345678]"
+      "order_id_list" => [1234567,2345678]
     },
     "api_secret",
     "api_key",
@@ -842,7 +842,6 @@ defmodule Dwarves.BinanceFutures do
   ```
   {:ok,
     [
-      %{"code" => -2011, "msg" => "Unknown order sent."},
       %{"code" => -2011, "msg" => "Unknown order sent."},
       %{
         "avgPrice" => "0.00000",
