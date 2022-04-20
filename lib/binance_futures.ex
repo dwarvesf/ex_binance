@@ -806,6 +806,117 @@ defmodule Dwarves.BinanceFutures do
     end
   end
 
+  @doc """
+  Cancel multi open orders of symbol
+
+  Symbol can be a binance symbol in the form of `"ETHBTC"` or `%Binance.TradePair{}`.
+
+  Please read https://binance-docs.github.io/apidocs/futures/en/#cancel-multiple-orders-trade to understand all the parameters
+
+  Returns
+  ```
+  {:ok,
+    [
+      %{"code" => code, "msg" => msg},
+      %Binance.Order{}
+    ]
+  }
+  ```
+  or
+  ```
+  {:error, reason}
+  ```
+
+  ## Examples
+  ```
+  cancel_multi_orders(%{
+      "symbol" => "BTCUSDT",
+      "order_id_list" => "[1234567,2345678]"
+    },
+    "api_secret",
+    "api_key",
+    true)
+  ```
+
+  Result:
+  ```
+  {:ok,
+    [
+      %{"code" => -2011, "msg" => "Unknown order sent."},
+      %{"code" => -2011, "msg" => "Unknown order sent."},
+      %{
+        "avgPrice" => "0.00000",
+        "clientOrderId" => "web_iVF8ONxrHn1Y1UXyGVUN",
+        "closePosition" => false,
+        "cumQty" => "0",
+        "cumQuote" => "0",
+        "executedQty" => "0",
+        "orderId" => 3033608152,
+        "origQty" => "0.002",
+        "origType" => "LIMIT",
+        "positionSide" => "BOTH",
+        "price" => "40000",
+        "priceProtect" => false,
+        "reduceOnly" => false,
+        "side" => "BUY",
+        "status" => "CANCELED",
+        "stopPrice" => "0",
+        "symbol" => "BTCUSDT",
+        "timeInForce" => "GTC",
+        "type" => "LIMIT",
+        "updateTime" => 1650433385291,
+        "workingType" => "CONTRACT_PRICE"
+      }
+    ]}
+  ```
+  """
+  def cancel_multi_orders(
+        %{
+          "symbol" => symbol
+        } = params,
+        api_secret,
+        api_key,
+        is_testnet \\ false
+      )
+      when is_binary(symbol) do
+    arguments =
+      %{
+        symbol: symbol,
+        recvWindow: get_receiving_window(params["receiving_window"]),
+        timestamp: get_timestamp(params["timestamp"])
+      }
+      |> Map.merge(
+        unless(
+          is_nil(params["order_id_list"]),
+          do: %{orderIdList: params["order_id_list"]},
+          else: %{}
+        )
+      )
+      |> Map.merge(
+        unless(
+          is_nil(params["orig_client_order_id_list"]),
+          do: %{origClientOrderIdList: params["orig_client_order_id_list"]},
+          else: %{}
+        )
+      )
+
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.signed_querystring_request_binance(
+           "#{endpoint}/fapi/v1/batchOrders",
+           arguments,
+           :delete,
+           api_secret,
+           api_key
+         ) do
+      {:ok, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        data
+    end
+  end
+
   # Misc
 
   defp format_price(num) when is_float(num), do: :erlang.float_to_binary(num, [{:decimals, 8}])
