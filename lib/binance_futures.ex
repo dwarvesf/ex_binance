@@ -888,14 +888,14 @@ defmodule Dwarves.BinanceFutures do
       |> Map.merge(
         unless(
           is_nil(params["order_id_list"]),
-          do: %{orderIdList: params["order_id_list"]},
+          do: %{orderIdList: "[#{Enum.join(params["order_id_list"], ",")}]"},
           else: %{}
         )
       )
       |> Map.merge(
         unless(
           is_nil(params["orig_client_order_id_list"]),
-          do: %{origClientOrderIdList: params["orig_client_order_id_list"]},
+          do: %{origClientOrderIdList: "[#{Enum.join(params["orig_client_order_id_list"], ",")}]"},
           else: %{}
         )
       )
