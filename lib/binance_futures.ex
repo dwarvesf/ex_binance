@@ -423,6 +423,9 @@ defmodule Dwarves.BinanceFutures do
       {:error, %{"code" => code, "msg" => msg}} ->
         {:error, {:binance_error, %{code: code, msg: msg}}}
 
+      {:error, error} ->
+        {:error, {:binance_error, error}}
+
       data ->
         parse_account_info(data)
     end
