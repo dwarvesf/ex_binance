@@ -57,7 +57,7 @@ defmodule Dwarves.BinanceSpot do
   or
   {:error, {:binance_error, %{
         code: -3026,
-        msg: "request param 'type' wrong, shoud be in ('SPOT', 'MARGIN', 'FUTURES')"
+        msg: "request param 'type' wrong, should be in ('SPOT', 'MARGIN', 'FUTURES')"
       }
     }
   }
@@ -188,6 +188,67 @@ defmodule Dwarves.BinanceSpot do
 
     case HTTPClient.signed_request_binance(
            "#{endpoint}/sapi/v1/sub-account/universalTransfer",
+           arguments,
+           :post,
+           api_secret,
+           api_key
+         ) do
+      {:ok, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        data
+    end
+  end
+
+  @doc """
+  Swap token
+
+  Returns `{:ok, %{}}` or `{:error, reason}`.
+
+  In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
+
+  Please read https://binance-docs.github.io/apidocs/spot/en/#swap-trade to understand all the parameters
+
+  ## Examples
+  ```
+  swap(%{"quote_asset" => "BUSD", "base_asset" => "USDT", "quote_qty" => 1000.53}, "api_key", "api_secret")
+  ```
+
+  Result:
+  ```
+  {:ok,
+   %{
+      swapId: 2314
+    }
+  or
+  {:error, {:binance_error, %{
+        code: -1002,
+        msg: "You are not authorized to execute this request."
+      }
+    }
+  }
+  ```
+  """
+  def swap(
+    %{"quote_asset" => quote_asset, "base_asset" => base_asset, "quote_qty" => quote_qty} = params,
+        api_key,
+        api_secret,
+        is_testnet \\ false
+      ) do
+    arguments =
+      %{
+        quoteAsset: quote_asset,
+        baseAsset: base_asset,
+        quoteQty: quote_qty,
+        recvWindow: get_receiving_window(params["receiving_window"]),
+        timestamp: get_timestamp(params["timestamp"])
+      }
+
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.signed_request_binance(
+           "#{endpoint}/sapi/v1/bswap/swap",
            arguments,
            :post,
            api_secret,
