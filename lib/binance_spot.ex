@@ -262,6 +262,72 @@ defmodule Dwarves.BinanceSpot do
     end
   end
 
+  @doc """
+  Get swap histories on binance by params
+
+  Returns `{:ok, []}` or `{:error, reason}`.
+
+  In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
+
+  Please read https://binance-docs.github.io/apidocs/spot/en/#get-swap-history-user_data to understand all the parameters
+
+  ## Examples
+  ```
+  get_swap_histories(
+    "api_key",
+    "api_secret",
+    %{"swapId" => 227709205},
+    false
+  )
+  ```
+
+  Result:
+  ```
+  {:ok,
+    [
+      %Binance.SwapHistory{
+        base_asset: "BUSD",
+        base_qty: "9.9845313",
+        fee: "0.015",
+        price: "1.00004694",
+        quote_asset: "USDT",
+        quote_qty: "10",
+        status: 1,
+        swap_id: 227709205,
+        swap_time: 1661230512920
+      }
+    ]}
+  or
+  {:error, {:binance_error, %{code: -1, msg: ""}}}
+  ```
+  """
+  def get_swap_histories(api_key, secret_key, params, is_testnet \\ false) do
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.get_binance(
+           "#{endpoint}/sapi/v1/bswap/swap",
+           params,
+           secret_key,
+           api_key
+         ) do
+      {:error, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        parse_swap_history_response(data)
+    end
+  end
+
+  defp parse_swap_history_response({:ok, responses}) do
+    {:ok,
+    Enum.map(responses, fn res ->
+      case res do
+        %{"code" => _code, "msg" => _msg} = error -> error
+        _ -> Binance.SwapHistory.new(res)
+      end
+    end)}
+  end
+
   # Misc
 
   defp get_timestamp(timestamp) do
