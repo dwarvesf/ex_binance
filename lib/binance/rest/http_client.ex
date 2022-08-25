@@ -1,8 +1,8 @@
 defmodule Binance.Rest.HTTPClient do
   require Logger
 
-  def get_binance(url, headers \\ []) do
-    HTTPoison.get("#{url}", headers)
+  def get_binance(url, headers \\ [], options \\ []) do
+    HTTPoison.get("#{url}", headers, options)
     |> parse_response
   end
 
@@ -17,7 +17,7 @@ defmodule Binance.Rest.HTTPClient do
         error
 
       {:ok, url, headers} ->
-        get_binance(url, headers)
+        get_binance(url, headers, Map.get(params, "request_opts", []))
     end
   end
 
@@ -61,7 +61,7 @@ defmodule Binance.Rest.HTTPClient do
     end
   end
 
-  def signed_request_binance(url, params, method, api_secret, api_key) do
+  def signed_request_binance(url, params, method, api_secret, api_key, opts \\ []) do
     argument_string =
       params
       |> prepare_query_params()
@@ -83,7 +83,8 @@ defmodule Binance.Rest.HTTPClient do
            [
              {"X-MBX-APIKEY", api_key},
              {"Content-type", "application/x-www-form-urlencoded"}
-           ]
+           ],
+           opts
          ]) do
       {:error, err} ->
         {:error, {:http_error, err}}

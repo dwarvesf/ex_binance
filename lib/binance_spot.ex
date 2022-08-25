@@ -252,7 +252,8 @@ defmodule Dwarves.BinanceSpot do
            arguments,
            :post,
            api_secret,
-           api_key
+           api_key,
+           Map.get(params, "request_opts", [])
          ) do
       {:ok, %{"code" => code, "msg" => msg}} ->
         {:error, {:binance_error, %{code: code, msg: msg}}}
