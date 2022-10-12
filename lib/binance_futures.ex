@@ -382,6 +382,117 @@ defmodule Dwarves.BinanceFutures do
     end
   end
 
+  def get_ticker_24h(symbol \\ nil, is_testnet \\ false) do
+    endpoint = get_endpoint(is_testnet)
+
+    case symbol do
+      nil ->
+        case HTTPClient.get_binance("#{endpoint}/fapi/v1/ticker/24hr", []) do
+          {:error, %{"code" => code, "msg" => msg}} ->
+            {:error, {:binance_error, %{code: code, msg: msg}}}
+
+          data ->
+            parse_ticker_24h(data)
+        end
+
+      _ ->
+        case HTTPClient.get_binance(
+               "#{endpoint}/fapi/v1/ticker/24hr?symbol=#{symbol}",
+               []
+             ) do
+          {:error, %{"code" => code, "msg" => msg}} ->
+            {:error, {:binance_error, %{code: code, msg: msg}}}
+
+          data ->
+            parse_ticker_24h(data)
+        end
+    end
+  end
+
+  def get_depth_snapshot(symbol, limit \\ 1000, is_testnet \\ false) do
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.get_binance(
+           "#{endpoint}/fapi/v1/depth?symbol=#{symbol}&limit=#{limit}",
+           []
+         ) do
+      {:error, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        parse_depth(data)
+    end
+  end
+
+  def get_position_risk(api_key, secret_key, symbol \\ nil, is_testnet \\ false) do
+    endpoint = get_endpoint(is_testnet)
+
+    case symbol do
+      nil ->
+        case HTTPClient.get_binance("#{endpoint}/fapi/v2/positionRisk", %{}, secret_key, api_key) do
+          {:error, %{"code" => code, "msg" => msg}} ->
+            {:error, {:binance_error, %{code: code, msg: msg}}}
+
+          data ->
+            parse_position_risk(data)
+        end
+
+      _ ->
+        case HTTPClient.get_binance(
+               "#{endpoint}/fapi/v2/positionRisk",
+               %{symbol: symbol},
+               secret_key,
+               api_key
+             ) do
+          {:error, %{"code" => code, "msg" => msg}} ->
+            {:error, {:binance_error, %{code: code, msg: msg}}}
+
+          data ->
+            parse_position_risk(data)
+        end
+    end
+  end
+
+  def get_notional_leverage_brackets(api_key, secret_key, symbol \\ nil, is_testnet \\ false) do
+    endpoint = get_endpoint(is_testnet)
+
+    case symbol do
+      nil ->
+        case HTTPClient.get_binance(
+               "#{endpoint}/fapi/v1/leverageBracket",
+               %{},
+               secret_key,
+               api_key
+             ) do
+          {:error, %{"code" => code, "msg" => msg}} ->
+            {:error, {:binance_error, %{code: code, msg: msg}}}
+
+          {:error, error} ->
+            {:error, {:binance_error, error}}
+
+          data ->
+            parse_notional_leverage_brackets(data)
+        end
+
+      _ ->
+        case HTTPClient.get_binance(
+               "#{endpoint}/fapi/v1/leverageBracket",
+               %{symbol: symbol},
+               secret_key,
+               api_key
+             ) do
+          {:error, %{"code" => code, "msg" => msg}} ->
+            {:error, {:binance_error, %{code: code, msg: msg}}}
+
+          {:error, error} ->
+            {:error, {:binance_error, error}}
+
+          data ->
+            parse_notional_leverage_brackets(data)
+        end
+    end
+  end
+
   @doc """
   get account info from binance
 
@@ -1045,6 +1156,51 @@ defmodule Dwarves.BinanceFutures do
       |> Enum.join(",")
 
     "{#{kvString}}"
+  end
+
+  def parse_ticker_24h({:ok, response}) do
+    response
+    |> is_list()
+    |> case do
+      true ->
+        response |> Enum.map(fn ticker -> ticker |> Binance.Ticker.new() end)
+
+      false ->
+        response |> Binance.Ticker.new()
+    end
+  end
+
+  def parse_depth({:ok, response}) do
+    response |> Binance.DepthSnapshot.new()
+  end
+
+  def parse_position_risk({:ok, response}) do
+    {:ok,
+     response
+     |> Enum.map(fn positionRisk ->
+       positionRisk |> Binance.PositionRisk.new()
+     end)}
+  end
+
+  def parse_notional_leverage_brackets({:ok, response}) do
+    notional_leverage_brackets =
+      response
+      |> Enum.map(fn notional_leverage_bracket ->
+        notional_leverage_bracket =
+          notional_leverage_bracket
+          |> Binance.NotionalLeverageBracket.new()
+
+        brackets =
+          notional_leverage_bracket.brackets
+          |> Enum.map(fn itm ->
+            itm |> Binance.Bracket.new()
+          end)
+
+        notional_leverage_bracket
+        |> Map.put(:brackets, brackets)
+      end)
+
+    {:ok, notional_leverage_brackets}
   end
 
   def parse_exchange_info({:ok, response}) do
