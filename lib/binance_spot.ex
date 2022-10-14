@@ -1,12 +1,12 @@
 defmodule Dwarves.BinanceSpot do
   alias Binance.Rest.HTTPClient
 
-  @endpoint Application.get_env(
+  @endpoint Application.compile_env(
               :dwarves_binancex,
               :spot_url,
               "https://api.binance.com"
             )
-  @testnet_endpoint Application.get_env(
+  @testnet_endpoint Application.compile_env(
                       :dwarves_binancex,
                       :spot_testnet_url,
                       "https://testnet.binance.vision"
@@ -317,6 +317,80 @@ defmodule Dwarves.BinanceSpot do
       data ->
         parse_swap_history_response(data)
     end
+  end
+
+  @doc """
+  Get swap quote
+
+  Returns `{:ok, %{}}` or `{:error, reason}`.
+
+  In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
+
+  Please read https://binance-docs.github.io/apidocs/spot/en/#request-quote-user_data to understand all the parameters
+
+  ## Examples
+  ```
+  quote(%{"quote_asset" => "BUSD", "base_asset" => "USDT", "quote_qty" => 300000}, "api_key", "api_secret")
+  ```
+
+  Result:
+  ```
+  {:ok,
+   %Binance.SwapQuote{
+      quote_asset: "USDT",
+      base_asset: "BUSD",
+      quote_qty: 300000,
+      base_qty: 299975,
+      price: 1.00008334,
+      slippage: 0.00007245,
+      fee: 120
+    }
+  or
+  {:error, {:binance_error, %{
+        code: -1002,
+        msg: "You are not authorized to execute this request."
+      }
+    }
+  }
+  ```
+  """
+  def quote(
+    %{"quote_asset" => quote_asset, "base_asset" => base_asset, "quote_qty" => quote_qty} = params,
+        api_key,
+        api_secret,
+        is_testnet \\ false
+      ) do
+    arguments =
+      %{
+        quoteAsset: quote_asset,
+        baseAsset: base_asset,
+        quoteQty: quote_qty,
+        recvWindow: get_receiving_window(params["receiving_window"]),
+        timestamp: get_timestamp(params["timestamp"])
+      }
+
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.get_binance(
+           "#{endpoint}/sapi/v1/bswap/quote",
+           arguments,
+           api_secret,
+           api_key
+         ) do
+      {:ok, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        parse_swap_quote_response(data)
+    end
+  end
+
+  defp parse_swap_quote_response({:ok, res}) do
+    {:ok,
+    case res do
+      %{"code" => _code, "msg" => _msg} = error -> error
+      _ -> Binance.SwapQuote.new(res)
+    end}
   end
 
   defp parse_swap_history_response({:ok, responses}) do
