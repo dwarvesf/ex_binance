@@ -1,6 +1,6 @@
 # This file is responsible for configuring your application
 # and its dependencies with the aid of the Mix.Config module.
-use Mix.Config
+import Config
 
 config :dwarves_binancex,
   perpetual_futures_url: "https://fapi.binance.com",
