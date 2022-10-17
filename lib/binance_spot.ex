@@ -425,4 +425,91 @@ defmodule Dwarves.BinanceSpot do
         val
     end
   end
+
+  @doc """
+  get spot account info from binance
+
+  Returns `{:ok, %{}}` or `{:error, reason}`.
+
+  In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
+
+  Please read https://binance-docs.github.io/apidocs/spot/en/#account-information-user_data to understand all the parameters
+
+  ## Examples
+  ```
+  get_account_info("api_key", "api_secret", true)
+  ```
+
+  Result:
+  ```
+  {:ok,
+   %Binance.SpotAccount{
+      maker_commission: 15,
+      taker_commission: 15,
+      buyer_commission: 0,
+      seller_commission: 0,
+      can_trade: true,
+      can_withdraw: true,
+      can_deposit: true,
+      brokered: false,
+      update_time: 123456789,
+      account_type: "SPOT",
+      "balances": [
+        %Binance.SpotBalance{
+          "asset": "BTC",
+          "free": "4723846.89208129",
+          "locked": "0.00000000"
+        },
+        %Binance.SpotBalance{
+          "asset": "LTC",
+          "free": "4763368.68006011",
+          "locked": "0.00000000"
+        }
+      ],
+      "permissions": [
+        "SPOT"
+      ]
+   }
+  }
+  or
+  {:error, {:binance_error, %{code: -2019, msg: "Margin is insufficient."}}}
+  ```
+  """
+  def get_account_info(api_key, secret_key, is_testnet \\ false) do
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.get_binance(
+           "#{endpoint}/api/v3/account",
+           %{},
+           secret_key,
+           api_key
+         ) do
+      {:error, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      {:error, error} ->
+        {:error, {:binance_error, error}}
+
+      data ->
+        parse_account_info(data)
+    end
+  end
+
+  def parse_account_info({:ok, response}) do
+    account_info =
+      response
+      |> Binance.SpotAccount.new()
+
+    balances =
+      account_info.balances
+      |> Enum.map(fn itm ->
+        itm |> Binance.SpotBalance.new()
+      end)
+
+    account_info =
+      account_info
+      |> Map.put(:balances, balances)
+
+    {:ok, account_info}
+  end
 end
