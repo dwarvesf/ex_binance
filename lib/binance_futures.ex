@@ -1140,7 +1140,7 @@ defmodule Dwarves.BinanceFutures do
     )
     |> Map.merge(
       unless(is_nil(params["close_position"]),
-        do: %{closePosition: format_price(params["close_position"])},
+        do: %{closePosition: params["close_position"]},
         else: %{}
       )
     )
