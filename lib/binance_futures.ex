@@ -875,6 +875,64 @@ defmodule Dwarves.BinanceFutures do
   ## Examples
   ```
   cancel_all_open_orders(%{
+      "symbol" => "ALL"
+    },
+    "api_secret",
+    "api_key",
+    true)
+  ```
+
+  Result: `{:ok,
+    %{
+      "code": "200",
+      "msg": "The operation of cancel all open order is done."
+    }
+  }
+  `
+  """
+  def cancel_all_open_orders(
+        %{"symbol" => "ALL"} = params,
+        api_secret,
+        api_key,
+        is_testnet \\ false
+      ) do
+    arguments = %{
+      recvWindow: get_receiving_window(params["receiving_window"]),
+      timestamp: get_timestamp(params["timestamp"])
+    }
+
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.signed_querystring_request_binance(
+           "#{endpoint}/fapi/v1/allOpenOrders",
+           arguments,
+           :delete,
+           api_secret,
+           api_key
+         ) do
+      {:ok, %{"code" => 200, "msg" => msg}} ->
+        {:ok, %{code: 200, msg: msg}}
+
+      {:ok, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+    end
+  end
+
+  @doc """
+  Cancel all open orders of symbol
+
+  Symbol can be a binance symbol in the form of `"ETHBTC"` or `%Binance.TradePair{}`.
+
+  Returns `{:ok,
+    %{
+      "code": "200",
+      "msg": "The operation of cancel all open order is done."
+    }
+  }` or `{:error, reason}`
+
+  ## Examples
+  ```
+  cancel_all_open_orders(%{
       "symbol" => "BTCUSDT"
     },
     "api_secret",
