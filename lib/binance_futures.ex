@@ -134,8 +134,6 @@ defmodule Dwarves.BinanceFutures do
     end
   end
 
-  # Test Order
-
   @doc """
   Creates a new test order on binance
 
