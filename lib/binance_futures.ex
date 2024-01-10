@@ -134,6 +134,78 @@ defmodule Dwarves.BinanceFutures do
     end
   end
 
+  # Test Order
+
+  @doc """
+  Creates a new test order on binance
+
+  Returns `{:ok, %{}}` or `{:error, reason}`.
+
+  In the case of a error on binance, for example with invalid parameters, `{:error, {:binance_error, %{code: code, msg: msg}}}` will be returned.
+
+  Please read https://binance-docs.github.io/apidocs/futures/en/#test-order-trade to understand all the parameters
+
+  ## Examples
+  ```
+  create_test_order(
+    %{"symbol" => "BTCUSDT", "quantity" => 1, "side" => "BUY", "type" => "MARKET"},
+    "api_secret",
+    "api_key",
+    true)
+  ```
+
+  Result:
+  ```
+  {:ok,
+   %{
+     "orderId" => 809666629,
+     "origQty" => "1",
+     "origType" => "MARKET",
+     "positionSide" => "BOTH",
+     "price" => "0",
+     "side" => "BUY",
+     "status" => "NEW",
+     "symbol" => "BTCUSDT",
+     "type" => "MARKET",
+     ...
+   }
+  }
+  or
+  {:error, {:binance_error, %{code: -2019, msg: "Margin is insufficient."}}}
+  ```
+  """
+  def create_test_order(
+        params,
+        api_secret,
+        api_key,
+        is_testnet \\ false
+      ) do
+    arguments =
+      params
+      |> extract_order_params()
+      |> Map.merge(%{
+        recvWindow: get_receiving_window(params["receiving_window"]),
+        timestamp: get_timestamp(params["timestamp"])
+      })
+
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.signed_request_binance(
+           "#{endpoint}/fapi/v1/order/test",
+           arguments,
+           :post,
+           api_secret,
+           api_key
+         ) do
+      {:ok, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        data
+        |> parse_order_response
+    end
+  end
+
   @doc """
   Get all order on binance
 
