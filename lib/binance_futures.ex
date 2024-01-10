@@ -134,6 +134,38 @@ defmodule Dwarves.BinanceFutures do
     end
   end
 
+  def create_test_order(
+        params,
+        api_secret,
+        api_key,
+        is_testnet \\ false
+      ) do
+    arguments =
+      params
+      |> extract_order_params()
+      |> Map.merge(%{
+        recvWindow: get_receiving_window(params["receiving_window"]),
+        timestamp: get_timestamp(params["timestamp"])
+      })
+
+    endpoint = get_endpoint(is_testnet)
+
+    case HTTPClient.signed_request_binance(
+           "#{endpoint}/fapi/v1/order/test",
+           arguments,
+           :post,
+           api_secret,
+           api_key
+         ) do
+      {:ok, %{"code" => code, "msg" => msg}} ->
+        {:error, {:binance_error, %{code: code, msg: msg}}}
+
+      data ->
+        data
+        |> parse_order_response
+    end
+  end
+
   @doc """
   Get all order on binance
 
